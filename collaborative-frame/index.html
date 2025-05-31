@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Frame</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Wonder World - Collaborative Frame</h1>
+        <p>Type a command and watch the magic happen...</p>
+        
+        <form id="commandForm">
+            <input type="text" id="commandInput" placeholder="Try: 'change the background to blue'" />
+            <button type="submit">Collaborate</button>
+        </form>
+        
+        <div id="output">
+            <p>Ready for collaboration!</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('commandForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+            
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Processing: ' + command + '...</p>';
+            
+            try {
+                const response = await fetch('/collaborate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ command })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    output.innerHTML = '<p>✅ ' + result.message + '</p><p>Reloading page...</p>';
+                    // Give a moment to see the message, then reload
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    output.innerHTML = '<p>❌ Error: ' + result.error + '</p>';
+                }
+            } catch (error) {
+                output.innerHTML = '<p>❌ Network error: ' + error.message + '</p>';
+            }
+            
+            input.value = '';
+        });
+    </script>
+</body>
+</html>

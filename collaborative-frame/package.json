@@ -1,0 +1,15 @@
+{
+  "name": "collaborative-frame",
+  "version": "1.0.0",
+  "description": "Ultra-minimal self-modifying collaborative frame",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.2"
+  }
+}
