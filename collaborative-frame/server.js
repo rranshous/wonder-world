@@ -97,6 +97,19 @@ app.post('/collaborate', async (req, res) => {
                     },
                     required: ["filename"]
                 }
+            },
+            {
+                name: "list_files",
+                description: "List files and directories in a given path",
+                input_schema: {
+                    type: "object",
+                    properties: {
+                        path: {
+                            type: "string",
+                            description: "The directory path to list (defaults to current directory if not provided)"
+                        }
+                    }
+                }
             }
         ];
         
@@ -165,6 +178,27 @@ Please use the available tools to make the necessary changes to fulfill the user
                             toolResult.content = fileContent;
                         } catch (error) {
                             const errorMsg = `Error reading ${toolInput.filename}: ${error.message}`;
+                            console.error(`✗ ${errorMsg}`);
+                            toolResult.content = errorMsg;
+                            toolResult.is_error = true;
+                        }
+                    } else if (toolName === 'list_files') {
+                        try {
+                            const targetPath = toolInput.path ? path.join(__dirname, toolInput.path) : __dirname;
+                            const items = fs.readdirSync(targetPath);
+                            const listing = items.map(item => {
+                                const itemPath = path.join(targetPath, item);
+                                const stats = fs.statSync(itemPath);
+                                return {
+                                    name: item,
+                                    type: stats.isDirectory() ? 'directory' : 'file',
+                                    size: stats.isFile() ? stats.size : null
+                                };
+                            });
+                            console.log(`✓ Successfully listed ${targetPath} (${listing.length} items)`);
+                            toolResult.content = JSON.stringify(listing, null, 2);
+                        } catch (error) {
+                            const errorMsg = `Error listing directory ${toolInput.path || '.'}: ${error.message}`;
                             console.error(`✗ ${errorMsg}`);
                             toolResult.content = errorMsg;
                             toolResult.is_error = true;
