@@ -22,6 +22,14 @@
     </div>
 
     <script>
+        // Load previous output on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedOutput = localStorage.getItem('lastOutput');
+            if (savedOutput) {
+                document.getElementById('output').innerHTML = savedOutput;
+            }
+        });
+
         document.getElementById('commandForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = document.getElementById('commandInput');
@@ -44,16 +52,23 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    output.innerHTML = '<p>✅ ' + result.message + '</p><p>Reloading page...</p>';
-                    // Give a moment to see the message, then reload
+                    const outputHtml = '<p>✅ ' + result.message + '</p><p>Reloading page in 3 seconds...</p>';
+                    output.innerHTML = outputHtml;
+                    // Save output to localStorage before reload
+                    localStorage.setItem('lastOutput', outputHtml);
+                    // Give more time to see the message before reload
                     setTimeout(() => {
                         window.location.reload();
-                    }, 1000);
+                    }, 3000);
                 } else {
-                    output.innerHTML = '<p>❌ Error: ' + result.error + '</p>';
+                    const errorHtml = '<p>❌ Error: ' + result.error + '</p>';
+                    output.innerHTML = errorHtml;
+                    localStorage.setItem('lastOutput', errorHtml);
                 }
             } catch (error) {
-                output.innerHTML = '<p>❌ Network error: ' + error.message + '</p>';
+                const networkErrorHtml = '<p>❌ Network error: ' + error.message + '</p>';
+                output.innerHTML = networkErrorHtml;
+                localStorage.setItem('lastOutput', networkErrorHtml);
             }
             
             input.value = '';
