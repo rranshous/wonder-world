@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const Anthropic = require('@anthropic-ai/sdk');
+const { marked } = require('marked');
 
 // Load environment variables
 require('dotenv').config();
@@ -26,6 +27,8 @@ function createSystemPrompt() {
     return `You are Claude, collaborating with a human to build a self-modifying web application. You have access to tools that let you read files, edit files, create new files, and list directory contents.
 
 IMPORTANT: Due to the frame interface limitations, the user will only see your FINAL response message. Do not send intermediate messages - save all important information for your final response. Make your final response comprehensive and self-contained, summarizing all actions taken and their results.
+
+Your responses support markdown formatting for better readability. Use markdown to format your responses appropriately (e.g., code blocks, lists, headers, etc.).
 
 You are working in a collaborative frame project. To understand the current state of the project, use your tools:
 - Use 'list_files' to see what files exist in the project
@@ -252,9 +255,12 @@ app.post('/collaborate', async (req, res) => {
         console.log('Final conversation history length:', sessionHistory.length);
         console.log('Session stored:', conversationHistory.has(sessionId));
         
+        // Convert markdown to HTML before sending response
+        const htmlResponse = marked(responseMessage);
+        
         res.json({ 
             success: true, 
-            message: responseMessage,
+            message: htmlResponse,
             changes: changes
         });
         

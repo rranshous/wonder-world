@@ -5,6 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Collaborative Frame</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Additional styles for markdown content */
+        #output {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        #output code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        #output pre {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        #output h1, #output h2, #output h3, #output h4, #output h5, #output h6 {
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+        }
+        #output ul, #output ol {
+            padding-left: 20px;
+        }
+        #output blockquote {
+            border-left: 3px solid #dee2e6;
+            margin: 0;
+            padding-left: 1em;
+            color: #6c757d;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -59,7 +92,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    const outputHtml = '<p>✅ ' + result.message + '</p><p>Reloading page in 3 seconds...</p>';
+                    const outputHtml = result.message + '<p><em>Reloading page in 3 seconds...</em></p>';
                     output.innerHTML = outputHtml;
                     // Save output to localStorage before reload
                     localStorage.setItem('lastOutput', outputHtml);
