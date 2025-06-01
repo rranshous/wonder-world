@@ -26,17 +26,34 @@ const MAX_HISTORY_LENGTH = 10; // Maximum number of message pairs to keep per se
 // Load conversation history from file
 let conversationHistory;
 try {
-    const savedData = JSON.parse(fs.readFileSync(CONVERSATIONS_FILE, 'utf8'));
-    conversationHistory = new Map(Object.entries(savedData));
+    if (fs.existsSync(CONVERSATIONS_FILE)) {
+        const savedData = JSON.parse(fs.readFileSync(CONVERSATIONS_FILE, 'utf8'));
+        // Ensure savedData is an object with session keys
+        if (typeof savedData === 'object' && savedData !== null && !Array.isArray(savedData)) {
+            conversationHistory = new Map(Object.entries(savedData));
+            console.log(`Loaded ${conversationHistory.size} conversation sessions from file`);
+        } else {
+            console.log('Invalid conversation file format, starting fresh');
+            conversationHistory = new Map();
+        }
+    } else {
+        console.log('No conversations file found, starting fresh');
+        conversationHistory = new Map();
+    }
 } catch (error) {
-    console.log('No existing conversations found or error reading file, starting fresh');
+    console.log('Error reading conversations file:', error.message, '- starting fresh');
     conversationHistory = new Map();
 }
 
 // Function to save conversations to file
 function saveConversations() {
-    const conversationsObject = Object.fromEntries(conversationHistory);
-    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(conversationsObject, null, 2));
+    try {
+        const conversationsObject = Object.fromEntries(conversationHistory);
+        fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(conversationsObject, null, 2));
+        console.log(`Saved ${conversationHistory.size} conversation sessions to file`);
+    } catch (error) {
+        console.error('Error saving conversations:', error.message);
+    }
 }
 
 // Function to trim conversation history to maintain reasonable size
@@ -135,6 +152,7 @@ app.post('/collaborate', async (req, res) => {
         // Get or initialize conversation history for this session
         if (!conversationHistory.has(sessionId)) {
             conversationHistory.set(sessionId, []);
+            console.log(`Created new conversation session: ${sessionId}`);
         }
         const sessionHistory = conversationHistory.get(sessionId);
         
