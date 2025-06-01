@@ -36,6 +36,20 @@ function getProjectContext() {
     return context;
 }
 
+// Function to create system prompt with current file contents
+function createSystemPrompt() {
+    const projectContext = getProjectContext();
+    return `You are Claude, collaborating with a human to build a self-modifying web application. You have access to tools that let you read files, edit files, create new files, and list directory contents.
+
+Current project files:
+${Object.entries(projectContext).map(([filename, content]) => `
+=== ${filename} ===
+${content}
+`).join('\n')}
+
+Use the available tools to make the necessary changes to fulfill the user's requests. You can explore the project structure, read existing files, and modify them as needed.`;
+}
+
 // Function to apply file changes
 function applyFileChanges(changes) {
     const results = [];
@@ -68,9 +82,6 @@ app.post('/collaborate', async (req, res) => {
 
         console.log('Received command:', command);
         console.log('Session ID:', sessionId);
-        
-        // Get current project state
-        const projectContext = getProjectContext();
         
         // Define tools that Claude can use
         const tools = [
@@ -129,29 +140,18 @@ app.post('/collaborate', async (req, res) => {
         
         console.log('Conversation history length:', sessionHistory.length);
         
-        // Create the initial system prompt and user message
-        const systemPrompt = `You are Claude, collaborating with a human to build a self-modifying web application. You have access to tools that let you read files, edit files, create new files, and list directory contents.
-
-Current project files:
-${Object.entries(projectContext).map(([filename, content]) => `
-=== ${filename} ===
-${content}
-`).join('\n')}
-
-Use the available tools to make the necessary changes to fulfill the user's requests. You can explore the project structure, read existing files, and modify them as needed.`;
-
         // Prepare messages array for the API call
         const messages = [];
         
         // Add conversation history if it exists
         if (sessionHistory.length > 0) {
             // Add system context first, then conversation history
-            messages.push({ role: 'user', content: systemPrompt });
+            messages.push({ role: 'user', content: createSystemPrompt() });
             messages.push(...sessionHistory);
             messages.push({ role: 'user', content: command });
         } else {
             // First interaction in session
-            messages.push({ role: 'user', content: `${systemPrompt}\n\nThe human has given you this command: "${command}"` });
+            messages.push({ role: 'user', content: `${createSystemPrompt()}\n\nThe human has given you this command: "${command}"` });
         }
 
         // Add user's command to history
@@ -249,6 +249,9 @@ Use the available tools to make the necessary changes to fulfill the user's requ
             if (toolResults.length > 0) {
                 messages.push({ role: 'assistant', content: response.content });
                 messages.push({ role: 'user', content: toolResults });
+                
+                // Update messages[0] with fresh system prompt containing current file contents
+                messages[0] = { role: 'user', content: createSystemPrompt() };
                 
                 response = await anthropic.messages.create({
                     model: 'claude-3-5-sonnet-20241022',
