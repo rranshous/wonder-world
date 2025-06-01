@@ -22,6 +22,13 @@
     </div>
 
     <script>
+        // Generate a unique session ID
+        let sessionId = localStorage.getItem('sessionId');
+        if (!sessionId) {
+            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+            localStorage.setItem('sessionId', sessionId);
+        }
+
         // Load previous output on page load
         document.addEventListener('DOMContentLoaded', () => {
             const savedOutput = localStorage.getItem('lastOutput');
@@ -46,7 +53,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ command })
+                    body: JSON.stringify({ command, sessionId })
                 });
                 
                 const result = await response.json();

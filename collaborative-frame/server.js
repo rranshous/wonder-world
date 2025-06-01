@@ -18,6 +18,9 @@ const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY
 });
 
+// Store conversation history by session
+const conversationHistory = new Map();
+
 // Function to read all project files for context
 function getProjectContext() {
     const files = ['index.html', 'style.css', 'server.js', 'package.json'];
@@ -53,13 +56,18 @@ function applyFileChanges(changes) {
 // Main collaboration endpoint
 app.post('/collaborate', async (req, res) => {
     try {
-        const { command } = req.body;
+        const { command, sessionId } = req.body;
         
         if (!command) {
             return res.json({ success: false, error: 'No command provided' });
         }
         
+        if (!sessionId) {
+            return res.json({ success: false, error: 'No session ID provided' });
+        }
+
         console.log('Received command:', command);
+        console.log('Session ID:', sessionId);
         
         // Get current project state
         const projectContext = getProjectContext();
@@ -112,9 +120,17 @@ app.post('/collaborate', async (req, res) => {
                 }
             }
         ];
+
+        // Get or initialize conversation history for this session
+        if (!conversationHistory.has(sessionId)) {
+            conversationHistory.set(sessionId, []);
+        }
+        const sessionHistory = conversationHistory.get(sessionId);
         
-        // Create the prompt for Claude
-        const prompt = `You are Claude, collaborating with a human to build a self-modifying web application. The human has given you this command: "${command}"
+        console.log('Conversation history length:', sessionHistory.length);
+        
+        // Create the initial system prompt and user message
+        const systemPrompt = `You are Claude, collaborating with a human to build a self-modifying web application. You have access to tools that let you read files, edit files, create new files, and list directory contents.
 
 Current project files:
 ${Object.entries(projectContext).map(([filename, content]) => `
@@ -122,13 +138,30 @@ ${Object.entries(projectContext).map(([filename, content]) => `
 ${content}
 `).join('\n')}
 
-Please use the available tools to make the necessary changes to fulfill the user's request. You can read files, edit files, or create new files as needed.`;
+Use the available tools to make the necessary changes to fulfill the user's requests. You can explore the project structure, read existing files, and modify them as needed.`;
+
+        // Prepare messages array for the API call
+        const messages = [];
+        
+        // Add conversation history if it exists
+        if (sessionHistory.length > 0) {
+            // Add system context first, then conversation history
+            messages.push({ role: 'user', content: systemPrompt });
+            messages.push(...sessionHistory);
+            messages.push({ role: 'user', content: command });
+        } else {
+            // First interaction in session
+            messages.push({ role: 'user', content: `${systemPrompt}\n\nThe human has given you this command: "${command}"` });
+        }
+
+        // Add user's command to history
+        sessionHistory.push({ role: 'user', content: command });
 
         // Call Anthropic API with tools - handle multi-turn tool conversation
         let response = await anthropic.messages.create({
             model: 'claude-3-5-sonnet-20241022',
             max_tokens: 4000,
-            messages: [{ role: 'user', content: prompt }],
+            messages: messages,
             tools: tools
         });
         
@@ -208,17 +241,14 @@ Please use the available tools to make the necessary changes to fulfill the user
                     toolResults.push(toolResult);
                 } else if (content.type === 'text') {
                     responseMessage = content.text;
-                    console.log('Response message:', responseMessage.substring(0, 100) + '...');
+                    console.log('Claude response (full text):', responseMessage);
                 }
             }
             
             // Continue conversation with tool results
             if (toolResults.length > 0) {
-                const messages = [
-                    { role: 'user', content: prompt },
-                    { role: 'assistant', content: response.content },
-                    { role: 'user', content: toolResults }
-                ];
+                messages.push({ role: 'assistant', content: response.content });
+                messages.push({ role: 'user', content: toolResults });
                 
                 response = await anthropic.messages.create({
                     model: 'claude-3-5-sonnet-20241022',
@@ -236,12 +266,19 @@ Please use the available tools to make the necessary changes to fulfill the user
             for (const content of response.content) {
                 if (content.type === 'text') {
                     responseMessage = content.text;
-                    console.log('Final response message:', responseMessage.substring(0, 100) + '...');
+                    console.log('Final Claude response (full text):', responseMessage);
                 }
             }
         }
+
+        // Add Claude's complete response to history (including any tool use descriptions)
+        if (responseMessage && responseMessage !== 'Changes applied successfully') {
+            sessionHistory.push({ role: 'assistant', content: responseMessage });
+        }
         
         console.log('Applied changes:', changes);
+        console.log('Final conversation history length:', sessionHistory.length);
+        console.log('Session stored:', conversationHistory.has(sessionId));
         
         res.json({ 
             success: true, 
