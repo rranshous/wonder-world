@@ -19,8 +19,36 @@ const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY
 });
 
-// Store conversation history by session
-const conversationHistory = new Map();
+// Conversation persistence configuration
+const CONVERSATIONS_FILE = 'conversations.json';
+const MAX_HISTORY_LENGTH = 10; // Maximum number of message pairs to keep per session
+
+// Load conversation history from file
+let conversationHistory;
+try {
+    const savedData = JSON.parse(fs.readFileSync(CONVERSATIONS_FILE, 'utf8'));
+    conversationHistory = new Map(Object.entries(savedData));
+} catch (error) {
+    console.log('No existing conversations found or error reading file, starting fresh');
+    conversationHistory = new Map();
+}
+
+// Function to save conversations to file
+function saveConversations() {
+    const conversationsObject = Object.fromEntries(conversationHistory);
+    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(conversationsObject, null, 2));
+}
+
+// Function to trim conversation history to maintain reasonable size
+function trimConversationHistory(history) {
+    if (history.length > MAX_HISTORY_LENGTH * 2) {
+        // Keep the first message (system prompt) and the last MAX_HISTORY_LENGTH pairs
+        const systemMessage = history[0];
+        const recentMessages = history.slice(-(MAX_HISTORY_LENGTH * 2));
+        return [systemMessage, ...recentMessages];
+    }
+    return history;
+}
 
 // Function to create system prompt that encourages tool usage
 function createSystemPrompt() {
@@ -250,6 +278,10 @@ app.post('/collaborate', async (req, res) => {
         if (responseMessage && responseMessage !== 'Changes applied successfully') {
             sessionHistory.push({ role: 'assistant', content: responseMessage });
         }
+        
+        // Trim history if needed and save to file
+        conversationHistory.set(sessionId, trimConversationHistory(sessionHistory));
+        saveConversations();
         
         console.log('Applied changes:', changes);
         console.log('Final conversation history length:', sessionHistory.length);
