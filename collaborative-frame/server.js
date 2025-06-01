@@ -21,50 +21,19 @@ const anthropic = new Anthropic({
 // Store conversation history by session
 const conversationHistory = new Map();
 
-// Function to read all project files for context
-function getProjectContext() {
-    const files = ['index.html', 'style.css', 'server.js', 'package.json'];
-    const context = {};
-    
-    files.forEach(file => {
-        const filePath = path.join(__dirname, file);
-        if (fs.existsSync(filePath)) {
-            context[file] = fs.readFileSync(filePath, 'utf8');
-        }
-    });
-    
-    return context;
-}
-
-// Function to create system prompt with current file contents
+// Function to create system prompt that encourages tool usage
 function createSystemPrompt() {
-    const projectContext = getProjectContext();
     return `You are Claude, collaborating with a human to build a self-modifying web application. You have access to tools that let you read files, edit files, create new files, and list directory contents.
 
-Current project files:
-${Object.entries(projectContext).map(([filename, content]) => `
-=== ${filename} ===
-${content}
-`).join('\n')}
+IMPORTANT: Due to the frame interface limitations, the user will only see your FINAL response message. Do not send intermediate messages - save all important information for your final response. Make your final response comprehensive and self-contained, summarizing all actions taken and their results.
 
-Use the available tools to make the necessary changes to fulfill the user's requests. You can explore the project structure, read existing files, and modify them as needed.`;
-}
+You are working in a collaborative frame project. To understand the current state of the project, use your tools:
+- Use 'list_files' to see what files exist in the project
+- Use 'read_file' to examine specific files when you need to understand their contents
+- Use 'edit_file' to make changes to files
+- Use 'list_files' with a path to explore subdirectories
 
-// Function to apply file changes
-function applyFileChanges(changes) {
-    const results = [];
-    
-    for (const [filename, content] of Object.entries(changes)) {
-        try {
-            const filePath = path.join(__dirname, filename);
-            fs.writeFileSync(filePath, content, 'utf8');
-            results.push(`Modified ${filename}`);
-        } catch (error) {
-            results.push(`Error modifying ${filename}: ${error.message}`);
-        }
-    }
-    
-    return results;
+The project is a self-modifying web application, so you can edit any part of it, including this very server code that's calling you! Use your tools to understand the current state, then provide a complete response at the end that summarizes all actions taken and findings.`;
 }
 
 // Main collaboration endpoint
