@@ -177,8 +177,12 @@ app.post('/collaborate', async (req, res) => {
 
         // Call Anthropic API with tools - handle multi-turn tool conversation
         let response = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 4000,
+            model: 'claude-opus-4-20250514',
+            max_tokens: 20000,
+            thinking: {
+                type: "enabled",
+                budget_tokens: 10000
+            },
             messages: messages,
             tools: tools
         });
@@ -272,8 +276,12 @@ app.post('/collaborate', async (req, res) => {
                 messages[0] = { role: 'user', content: createSystemPrompt() };
                 
                 response = await anthropic.messages.create({
-                    model: 'claude-3-5-sonnet-20241022',
-                    max_tokens: 4000,
+                    model: 'claude-opus-4-20250514',
+                    max_tokens: 20000,
+                    thinking: {
+                        type: "enabled",
+                        budget_tokens: 10000
+                    },
                     messages: messages,
                     tools: tools
                 });
